@@ -1,86 +1,143 @@
 import streamlit as st
+import pandas as pd
 
-st.title("⚽ Over Trading Assistant PRO")
+st.set_page_config(page_title="Smart Over Trading",layout="centered")
+
+st.title("⚽ SMART OVER TRADING ELITE")
 
 st.header("Dati partita")
 
-squadra1 = st.text_input("Squadra casa")
-squadra2 = st.text_input("Squadra ospite")
+home = st.text_input("Squadra casa")
+away = st.text_input("Squadra ospite")
 
-quota_over25 = st.number_input("Quota Over 2.5", step=0.01)
-stake = st.number_input("Stake Over", step=1)
+quota_over = st.number_input("Quota Over 2.5",step=0.01)
+stake = st.number_input("Stake Over (€)",step=1)
 
-st.header("Dati Live")
+st.header("Dati LIVE")
 
-minuto = st.number_input("Minuto partita", step=1)
+minute = st.number_input("Minuto",step=1)
 
-gol_casa = st.number_input("Gol casa", step=1)
-gol_trasferta = st.number_input("Gol ospite", step=1)
+goal_home = st.number_input("Gol casa",step=1)
+goal_away = st.number_input("Gol ospite",step=1)
 
-gol_tot = gol_casa + gol_trasferta
+goals = goal_home + goal_away
 
-st.write("Gol totali:", gol_tot)
+shots = st.number_input("Tiri totali",step=1)
+shots_on = st.number_input("Tiri in porta",step=1)
+danger = st.number_input("Attacchi pericolosi",step=1)
+possession = st.number_input("Possesso offensivo (%)",step=1)
 
-tiri = st.number_input("Tiri totali", step=1)
-tiri_porta = st.number_input("Tiri in porta", step=1)
-attacchi = st.number_input("Attacchi pericolosi", step=1)
-xg = st.number_input("Expected goals (xG)", step=0.1)
+xg = st.number_input("Expected Goals (xG)",step=0.1)
 
-quota_under25 = st.number_input("Quota Under 2.5", step=0.01)
-quota_under15 = st.number_input("Quota Under 1.5", step=0.01)
-quota_under05 = st.number_input("Quota Under 0.5", step=0.01)
+quota_u25 = st.number_input("Quota Under 2.5",step=0.01)
+quota_u15 = st.number_input("Quota Under 1.5",step=0.01)
+quota_u05 = st.number_input("Quota Under 0.5",step=0.01)
 
 if st.button("Analizza partita"):
 
-    punteggio = 0
+    # INDICE PRESSIONE
+    pressure = (shots_on*4)+(shots*1)+(danger*0.6)+(xg*12)
 
-    if tiri >= 8:
-        punteggio += 2
+    # RITMO PARTITA
+    tempo = pressure / max(minute,1)
 
-    if tiri_porta >= 3:
-        punteggio += 2
+    # INDICE GOAL EXPECTATION
+    goal_index = (shots_on*2)+(xg*10)+(danger*0.3)
 
-    if attacchi >= 20:
-        punteggio += 2
+    score = 0
 
-    if xg >= 1:
-        punteggio += 3
+    if tempo > 1.7:
+        score += 4
 
-    if minuto >= 35 and minuto <= 65 and gol_tot == 0:
-        punteggio += 3
+    if shots_on >= 4:
+        score += 3
 
-    st.subheader("Punteggio partita")
-    st.write(punteggio)
+    if danger >= 30:
+        score += 2
 
-    if punteggio >= 8:
-        st.success("🔥 PARTITA OTTIMA PER OVER")
+    if xg >= 1.3:
+        score += 3
 
-    elif punteggio >= 5:
-        st.warning("⚠️ PARTITA INTERESSANTE")
+    if minute >= 35 and minute <= 70 and goals == 0:
+        score += 3
+
+    st.subheader("Indice pressione")
+    st.write(round(pressure,2))
+
+    st.subheader("Ritmo partita")
+    st.write(round(tempo,2))
+
+    st.subheader("Indice gol atteso")
+    st.write(round(goal_index,2))
+
+    st.subheader("Score partita")
+    st.write(score)
+
+    # SEMAFORO
+
+    if score >= 11:
+        st.success("🟢 MATCH PERFETTO PER OVER")
+
+    elif score >= 7:
+        st.warning("🟡 MATCH INTERESSANTE")
 
     else:
-        st.error("❌ PARTITA DA EVITARE")
+        st.error("🔴 MATCH DA EVITARE")
 
-    if punteggio >= 8 and gol_tot == 0 and minuto >= 35:
-        st.write("Strategia: entrare su Over 2.5")
+    # STRATEGIA
 
-    if gol_tot == 1:
-        st.write("Strategia: possibile copertura Over 1.5")
+    st.subheader("Strategia")
 
-    if gol_tot == 0 and minuto >= 60:
-        st.write("Strategia: valutare copertura")
+    if score >= 10 and goals == 0 and minute >= 35:
+        st.write("🔥 ENTRARE OVER 2.5")
+
+    elif goals == 1 and minute <= 60:
+        st.write("⚡ TENERE POSIZIONE")
+
+    elif goals == 1 and minute > 60:
+        st.write("⚠️ COPERTURA OVER 1.5")
+
+    elif goals == 0 and minute >= 65:
+        st.write("⚠️ VALUTARE HEDGE")
+
+    else:
+        st.write("Attendere sviluppo partita")
+
+    # PROBABILITA GOL
+
+    probability = min(95,int(goal_index*3))
+
+    st.subheader("Probabilità gol stimata")
+
+    st.progress(probability/100)
+
+    st.write(str(probability)+" %")
+
+    # COPERTURE
 
     st.subheader("Calcolo coperture")
 
-    if quota_under25 > 1:
-        stake25 = round(stake / (quota_under25 - 1), 2)
-        st.write("Copertura Under 2.5:", stake25, "€")
+    if quota_u25 > 1:
+        hedge25 = round(stake/(quota_u25-1),2)
+        st.write("Copertura Under 2.5:",hedge25,"€")
 
-    if quota_under15 > 1:
-        stake15 = round(stake / (quota_under15 - 1), 2)
-        st.write("Copertura Under 1.5:", stake15, "€")
+    if quota_u15 > 1:
+        hedge15 = round(stake/(quota_u15-1),2)
+        st.write("Copertura Under 1.5:",hedge15,"€")
 
-    if quota_under05 > 1:
-        stake05 = round(stake / (quota_under05 - 1), 2)
-        st.write("Copertura Under 0.5:", stake05, "€")
-    
+    if quota_u05 > 1:
+        hedge05 = round(stake/(quota_u05-1),2)
+        st.write("Copertura Under 0.5:",hedge05,"€")
+
+    # GRAFICO PRESSIONE
+
+    st.subheader("Grafico pressione")
+
+    data = {
+        "Tipo":["Tiri","Tiri Porta","Attacchi","xG"],
+        "Valore":[shots,shots_on,danger,xg]
+    }
+
+    df = pd.DataFrame(data)
+
+    st.bar_chart(df.set_index("Tipo"))
